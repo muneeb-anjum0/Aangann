@@ -39,15 +39,31 @@ async function initFirebase() {
       console.log("📝 Initializing with project:", serviceAccount.project_id);
       console.log("📧 Service account:", serviceAccount.client_email);
       
+      // Set environment variables for Google Cloud
+      process.env.GOOGLE_CLOUD_PROJECT = serviceAccount.project_id;
+      process.env.GCLOUD_PROJECT = serviceAccount.project_id;
+      process.env.FIRESTORE_EMULATOR_HOST = ''; // Make sure emulator is not used
+      
       admin.initializeApp({
         credential: admin.credential.cert(serviceAccount),
-        projectId: serviceAccount.project_id
+        projectId: serviceAccount.project_id,
+        databaseURL: `https://${serviceAccount.project_id}-default-rtdb.firebaseio.com/`
       });
       
       console.log("✅ Firebase Admin SDK initialized");
     }
     
     db = admin.firestore();
+    
+    // Explicitly set Firestore settings
+    db.settings({
+      projectId: 'aangan-821e4',
+      preferRest: false, // Use gRPC for better performance
+      ssl: true,
+      host: 'firestore.googleapis.com',
+      port: 443
+    });
+    
     firebaseInitialized = true;
     console.log("✅ Firebase initialized successfully");
   } catch (error) {
