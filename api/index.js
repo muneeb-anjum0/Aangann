@@ -49,8 +49,14 @@ async function initializeFirebase() {
   }
 }
 
-// Initialize Firebase immediately
-await initializeFirebase();
+// Initialize Firebase immediately (wrapped in IIFE)
+(async () => {
+  try {
+    await initializeFirebase();
+  } catch (error) {
+    console.error("Failed to initialize Firebase:", error);
+  }
+})();
 
 const app = express();
 
