@@ -221,23 +221,92 @@ app.get("/api/test", (req, res) => {
   });
 });
 
-// Blog endpoints with REST API fallback
+// Test Firestore permissions specifically
+app.get("/api/test-firestore", async (req, res) => {
+  try {
+    console.log("🧪 Testing Firestore permissions...");
+    
+    await initializeFirebase();
+    
+    if (!db) {
+      return res.status(500).json({ error: "Database not initialized" });
+    }
+    
+    // Test 1: Check if we can get a collection reference
+    console.log("Test 1: Getting collection reference...");
+    const blogsRef = db.collection('blogs');
+    console.log("✅ Collection reference created");
+    
+    // Test 2: Try to get collection metadata (doesn't require read permission)
+    console.log("Test 2: Testing collection access...");
+    try {
+      const snapshot = await blogsRef.limit(1).get();
+      console.log("✅ Collection query succeeded");
+      console.log("Snapshot empty:", snapshot.empty);
+      console.log("Snapshot size:", snapshot.size);
+      
+      if (!snapshot.empty) {
+        const firstDoc = snapshot.docs[0];
+        console.log("First document ID:", firstDoc.id);
+        console.log("First document data keys:", Object.keys(firstDoc.data()));
+      }
+      
+      res.json({
+        success: true,
+        message: "Firestore access working",
+        collectionAccess: true,
+        documentCount: snapshot.size,
+        isEmpty: snapshot.empty,
+        firstDocId: snapshot.empty ? null : snapshot.docs[0].id
+      });
+      
+    } catch (queryError) {
+      console.error("❌ Collection query failed:", queryError);
+      res.status(500).json({
+        error: "Firestore query failed",
+        details: queryError.message,
+        code: queryError.code
+      });
+    }
+    
+  } catch (error) {
+    console.error("❌ Firestore test failed:", error);
+    res.status(500).json({
+      error: "Firestore test failed",
+      details: error.message,
+      code: error.code
+    });
+  }
+});
+
+// Blog endpoints with detailed debugging
 app.get("/api/blogs", async (req, res) => {
   try {
     console.log("📚 Blogs endpoint called");
     
-    // Try Firebase Admin SDK first
+    // Try Firebase Admin SDK first with detailed debugging
     try {
       await initializeFirebase();
       
       if (db) {
         console.log("🔍 Trying Firebase Admin SDK...");
+        console.log("Database instance:", !!db);
+        console.log("Admin apps length:", admin.apps.length);
+        console.log("Project ID:", admin.apps[0]?.options?.projectId);
+        
         const blogsRef = db.collection('blogs');
+        console.log("Collection reference created");
+        
         const snapshot = await blogsRef.limit(10).get();
+        console.log("Query executed");
+        console.log("Snapshot empty:", snapshot.empty);
+        console.log("Snapshot size:", snapshot.size);
         
         const blogs = [];
-        snapshot.forEach(doc => {
+        snapshot.forEach((doc, index) => {
+          console.log(`Processing document ${index}: ${doc.id}`);
           const data = doc.data();
+          console.log(`Document ${doc.id} data:`, Object.keys(data));
           blogs.push({
             id: doc.id,
             _id: doc.id,
@@ -248,10 +317,16 @@ app.get("/api/blogs", async (req, res) => {
         });
         
         console.log(`✅ Admin SDK success: ${blogs.length} blogs`);
+        if (blogs.length > 0) {
+          console.log("First blog:", blogs[0]);
+        }
         return res.json(blogs);
+      } else {
+        console.log("❌ Database not initialized");
       }
     } catch (adminError) {
       console.warn("⚠️ Admin SDK failed, trying REST API:", adminError.message);
+      console.error("Admin SDK error details:", adminError);
     }
     
     // Fallback to Firebase REST API
