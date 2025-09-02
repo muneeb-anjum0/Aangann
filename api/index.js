@@ -123,6 +123,69 @@ app.get("/api/firebase-check", (req, res) => {
   }
 });
 
+// Test Firestore access directly
+app.get("/api/firestore-test", async (req, res) => {
+  try {
+    console.log("🧪 Testing direct Firestore access...");
+    
+    await initFirebase();
+    
+    if (!db) {
+      return res.status(500).json({ error: "Database not initialized" });
+    }
+    
+    console.log("📊 Database instance exists:", !!db);
+    console.log("🔥 Admin apps count:", admin.apps.length);
+    
+    // Try to access a very simple document
+    console.log("🔍 Attempting to access blogs collection...");
+    const blogsRef = db.collection('blogs');
+    
+    // Try to get just one document
+    console.log("📄 Getting single document...");
+    const snapshot = await blogsRef.limit(1).get();
+    
+    console.log("✅ Query successful!");
+    console.log("📊 Snapshot size:", snapshot.size);
+    console.log("📊 Snapshot empty:", snapshot.empty);
+    
+    if (!snapshot.empty) {
+      const doc = snapshot.docs[0];
+      console.log("📄 Document ID:", doc.id);
+      const data = doc.data();
+      console.log("📄 Document keys:", Object.keys(data));
+      
+      res.json({
+        success: true,
+        message: "Firestore access working!",
+        documentCount: snapshot.size,
+        firstDocId: doc.id,
+        firstDocKeys: Object.keys(data),
+        sampleData: {
+          id: doc.id,
+          title: data.title || 'No title',
+          excerpt: data.excerpt || 'No excerpt'
+        }
+      });
+    } else {
+      res.json({
+        success: true,
+        message: "Firestore access working but no documents found",
+        documentCount: 0
+      });
+    }
+    
+  } catch (error) {
+    console.error("❌ Firestore test failed:", error);
+    res.status(500).json({
+      error: "Firestore test failed",
+      details: error.message,
+      code: error.code,
+      stack: error.stack
+    });
+  }
+});
+
 // Blogs endpoint
 app.get("/api/blogs", async (req, res) => {
   try {
