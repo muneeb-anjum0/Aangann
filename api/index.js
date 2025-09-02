@@ -81,6 +81,47 @@ app.get("/api", (req, res) => {
   });
 });
 
+// Firebase diagnostic endpoint
+app.get("/api/firebase-status", (req, res) => {
+  try {
+    const status = {
+      firebase: {
+        initialized: admin.apps.length > 0,
+        error: firebaseError?.message || null,
+        projectId: admin.apps[0]?.options?.projectId || null,
+        serviceAccountEmail: admin.apps[0]?.options?.credential?.projectId || null
+      },
+      environment: {
+        hasFirebaseKey: !!process.env.FIREBASE_SERVICE_ACCOUNT_KEY,
+        storageBucket: process.env.FIREBASE_STORAGE_BUCKET || null,
+        nodeEnv: process.env.NODE_ENV || 'production'
+      },
+      database: {
+        initialized: !!db,
+        ready: false
+      }
+    };
+
+    // Try a simple database operation without querying collections
+    if (db) {
+      try {
+        // Just check if we can create a document reference (this doesn't hit the network)
+        const testRef = db.collection('test').doc('test');
+        status.database.ready = !!testRef;
+      } catch (error) {
+        status.database.error = error.message;
+      }
+    }
+
+    res.json(status);
+  } catch (error) {
+    res.status(500).json({
+      error: "Failed to get Firebase status",
+      details: error.message
+    });
+  }
+});
+
 // Test endpoints
 app.get("/api/firebase-test", async (req, res) => {
   try {
