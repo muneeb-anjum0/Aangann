@@ -5,6 +5,7 @@ const app = express();
 
 // Basic middleware
 app.use(express.json());
+console.log("🚀 API starting with session management...");
 
 // CORS
 app.use((req, res, next) => {
