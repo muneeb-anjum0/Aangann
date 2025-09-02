@@ -195,55 +195,6 @@ app.get("/api/firestore-test", async (req, res) => {
     });
   }
 });
-  try {
-    if (!db) {
-      return res.status(500).json({ error: "Database not initialized" });
-    }
-    
-    console.log("🧪 Testing basic Firebase connection...");
-    
-    // First, let's try to get project info (doesn't require Firestore permissions)
-    const app = admin.app();
-    const projectId = app.options.projectId;
-    
-    console.log("📱 Firebase app info:", {
-      projectId,
-      name: app.name
-    });
-    
-    // Now try the simplest Firestore operation - get a non-existent document
-    // This should work even with minimal permissions
-    console.log("🔍 Testing Firestore access...");
-    const testRef = db.collection('_test_connection_').doc('_test_doc_');
-    const doc = await testRef.get();
-    
-    console.log("✅ Firestore access successful - document exists:", doc.exists);
-    
-    res.json({ 
-      success: true,
-      message: "Firebase connection working!",
-      projectId,
-      firestoreAccess: true,
-      documentExists: doc.exists
-    });
-  } catch (error) {
-    console.error("❌ Firebase test error:", error);
-    
-    // More detailed error info
-    const errorInfo = {
-      message: error.message,
-      code: error.code,
-      status: error.status,
-      details: error.details || "No additional details"
-    };
-    
-    res.status(500).json({ 
-      error: "Firebase test failed", 
-      ...errorInfo,
-      suggestion: error.code === 16 ? "Service account may not have Firestore permissions" : "Unknown Firebase error"
-    });
-  }
-});
 
 app.get("/api/debug", (req, res) => {
   res.json({ 
