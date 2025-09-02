@@ -171,17 +171,10 @@ app.get("/api/blogs", async (req, res) => {
       });
     }
     
-    console.log("🔍 Checking collections...");
-    
-    // First, let's try to list collections to see what's available
-    const collections = await db.listCollections();
-    console.log("📁 Available collections:", collections.map(c => c.id));
-    
-    // Try to query blogs collection
     console.log("🔍 Querying blogs collection...");
     const blogsRef = db.collection('blogs');
     
-    // Simple get without ordering first
+    // Simple get without listing collections first
     const snapshot = await blogsRef.limit(10).get();
     
     console.log(`📄 Found ${snapshot.size} blogs`);
