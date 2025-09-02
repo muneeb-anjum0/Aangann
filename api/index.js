@@ -20,14 +20,12 @@ try {
     
     const serviceAccount = JSON.parse(serviceAccountString);
     console.log("🏷️ Service account project ID:", serviceAccount.project_id);
-    console.log("� Service account email:", serviceAccount.client_email);
+    console.log("📧 Service account email:", serviceAccount.client_email);
     
-    console.log("�🚀 Initializing Firebase Admin SDK...");
+    console.log("🚀 Initializing Firebase Admin SDK...");
     admin.initializeApp({
       credential: admin.credential.cert(serviceAccount),
-      projectId: serviceAccount.project_id,
-      databaseURL: `https://${serviceAccount.project_id}-default-rtdb.firebaseio.com/`,
-      storageBucket: `${serviceAccount.project_id}.appspot.com`
+      projectId: serviceAccount.project_id
     });
     
     console.log("✅ Firebase Admin SDK initialized");
@@ -36,10 +34,13 @@ try {
   db = admin.firestore();
   console.log("✅ Firestore connection established");
   
-  // Set Firestore settings
+  // Set Firestore settings with explicit project configuration
   db.settings({
     ignoreUndefinedProperties: true
   });
+  
+  // Force authentication by setting the project explicitly
+  process.env.GOOGLE_CLOUD_PROJECT = process.env.GOOGLE_CLOUD_PROJECT || 'aangan-821e4';
   
 } catch (error) {
   firebaseError = error;
