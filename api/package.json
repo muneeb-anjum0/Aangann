@@ -6,7 +6,9 @@
   "dependencies": {
     "express": "^4.19.2",
     "cors": "^2.8.5",
-    "cookie-parser": "^1.4.6"
+    "cookie-parser": "^1.4.6",
+    "firebase-admin": "^13.4.0",
+    "dotenv": "^17.2.1"
   },
   "engines": {
     "node": ">=18.0.0"
