@@ -1,4 +1,14 @@
-import express from "express";
+import express from      console.log("🔑 Decoding service account key...");
+      const serviceAccountString = Buffer.from(process.env.FIREBASE_SERVICE_ACCOUNT_KEY, 'base64').toString();
+      console.log("🔑 Service account key decoded, length:", serviceAccountString.length);
+      
+      const serviceAccount = JSON.parse(serviceAccountString);
+      console.log("🔑 Service account parsed successfully");
+      
+      console.log("🚀 Initializing Firebase Admin SDK...");
+      console.log("Project ID:", serviceAccount.project_id);
+      console.log("Client Email:", serviceAccount.client_email);
+      console.log("Has private key:", !!serviceAccount.private_key);ss";
 import admin from 'firebase-admin';
 
 // Initialize Firebase
@@ -211,6 +221,56 @@ app.get("/api/debug", (req, res) => {
     },
     timestamp: new Date().toISOString()
   });
+});
+
+// Test endpoint to verify environment variables
+app.get("/api/test-env", async (req, res) => {
+  try {
+    console.log("🔑 Testing environment variables...");
+    
+    // Check if service account key exists
+    const hasServiceAccountKey = !!process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
+    console.log("Has service account key:", hasServiceAccountKey);
+    
+    if (hasServiceAccountKey) {
+      try {
+        const serviceAccountString = Buffer.from(process.env.FIREBASE_SERVICE_ACCOUNT_KEY, 'base64').toString();
+        const serviceAccount = JSON.parse(serviceAccountString);
+        
+        console.log("Service account parsed successfully");
+        console.log("Project ID:", serviceAccount.project_id);
+        console.log("Client Email:", serviceAccount.client_email);
+        console.log("Has private key:", !!serviceAccount.private_key);
+        
+        res.json({
+          success: true,
+          hasServiceAccountKey: true,
+          projectId: serviceAccount.project_id,
+          clientEmail: serviceAccount.client_email,
+          hasPrivateKey: !!serviceAccount.private_key,
+          keyLength: serviceAccount.private_key ? serviceAccount.private_key.length : 0
+        });
+      } catch (parseError) {
+        console.error("Failed to parse service account key:", parseError);
+        res.status(500).json({
+          error: "Failed to parse service account key",
+          details: parseError.message,
+          hasServiceAccountKey: true
+        });
+      }
+    } else {
+      res.status(500).json({
+        error: "Service account key not found",
+        hasServiceAccountKey: false
+      });
+    }
+  } catch (error) {
+    console.error("Environment test failed:", error);
+    res.status(500).json({
+      error: "Environment test failed",
+      details: error.message
+    });
+  }
 });
 
 app.get("/api/test", (req, res) => {
