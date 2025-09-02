@@ -22,6 +22,7 @@ try {
     console.log("🚀 Initializing Firebase Admin SDK...");
     admin.initializeApp({
       credential: admin.credential.cert(serviceAccount),
+      projectId: serviceAccount.project_id,
       storageBucket: process.env.FIREBASE_STORAGE_BUCKET || 'aangan-821e4.appspot.com'
     });
     
@@ -70,6 +71,47 @@ app.get("/api", (req, res) => {
 });
 
 // Test endpoints
+app.get("/api/firebase-test", async (req, res) => {
+  try {
+    if (!db) {
+      return res.status(500).json({ error: "Database not initialized" });
+    }
+    
+    console.log("🧪 Testing Firebase connection...");
+    
+    // Try to read from a simple collection first
+    const testRef = db.collection('test');
+    const testDoc = await testRef.add({ 
+      test: true, 
+      timestamp: new Date(),
+      message: "Connection test from API"
+    });
+    
+    console.log("✅ Test document created:", testDoc.id);
+    
+    // Now try to read it back
+    const doc = await testRef.doc(testDoc.id).get();
+    const data = doc.data();
+    
+    // Clean up - delete the test document
+    await testRef.doc(testDoc.id).delete();
+    
+    res.json({ 
+      success: true,
+      message: "Firebase connection working!",
+      testData: data,
+      documentId: testDoc.id
+    });
+  } catch (error) {
+    console.error("❌ Firebase test error:", error);
+    res.status(500).json({ 
+      error: "Firebase test failed", 
+      details: error.message,
+      code: error.code 
+    });
+  }
+});
+
 app.get("/api/debug", (req, res) => {
   res.json({ 
     message: "Debug endpoint",
@@ -108,15 +150,25 @@ app.get("/api/blogs", async (req, res) => {
       });
     }
     
+    console.log("🔍 Checking collections...");
+    
+    // First, let's try to list collections to see what's available
+    const collections = await db.listCollections();
+    console.log("📁 Available collections:", collections.map(c => c.id));
+    
+    // Try to query blogs collection
     console.log("🔍 Querying blogs collection...");
     const blogsRef = db.collection('blogs');
-    const snapshot = await blogsRef.orderBy('createdAt', 'desc').get();
+    
+    // Simple get without ordering first
+    const snapshot = await blogsRef.limit(10).get();
     
     console.log(`📄 Found ${snapshot.size} blogs`);
     
     const blogs = [];
     snapshot.forEach(doc => {
       const data = doc.data();
+      console.log(`📄 Blog: ${doc.id}`, Object.keys(data));
       blogs.push({
         id: doc.id,
         _id: doc.id,
@@ -134,7 +186,8 @@ app.get("/api/blogs", async (req, res) => {
     res.status(500).json({ 
       error: "Failed to fetch blogs", 
       details: error.message,
-      code: error.code 
+      code: error.code,
+      stack: error.stack
     });
   }
 });
