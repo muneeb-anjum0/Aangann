@@ -366,4 +366,81 @@ app.get("/api/testimonials", async (req, res) => {
   }
 });
 
+// Authentication endpoints for admin panel
+app.get("/api/auth/me", async (req, res) => {
+  try {
+    // For now, return a simple user object
+    // In a real app, you would verify JWT token here
+    const authHeader = req.headers.authorization;
+    
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: "No token provided" });
+    }
+    
+    const token = authHeader.split(' ')[1];
+    
+    // Simple token validation (you might want to use JWT verification)
+    if (token === 'admin-token') {
+      res.json({
+        id: 'admin-user',
+        email: 'admin@aangan.com',
+        name: 'Admin User',
+        role: 'admin'
+      });
+    } else {
+      res.status(401).json({ error: "Invalid token" });
+    }
+    
+  } catch (error) {
+    console.error("❌ Auth me error:", error);
+    res.status(500).json({ 
+      error: "Authentication failed", 
+      details: error.message 
+    });
+  }
+});
+
+app.post("/api/auth/login", async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    
+    // Simple hardcoded admin credentials
+    // In production, you would hash passwords and store in database
+    if (email === 'admin@aangan.com' && password === 'admin123') {
+      res.json({
+        token: 'admin-token',
+        user: {
+          id: 'admin-user',
+          email: 'admin@aangan.com',
+          name: 'Admin User',
+          role: 'admin'
+        }
+      });
+    } else {
+      res.status(401).json({ error: "Invalid credentials" });
+    }
+    
+  } catch (error) {
+    console.error("❌ Login error:", error);
+    res.status(500).json({ 
+      error: "Login failed", 
+      details: error.message 
+    });
+  }
+});
+
+app.post("/api/auth/logout", async (req, res) => {
+  try {
+    // In a real app, you might invalidate the token here
+    res.json({ message: "Logged out successfully" });
+    
+  } catch (error) {
+    console.error("❌ Logout error:", error);
+    res.status(500).json({ 
+      error: "Logout failed", 
+      details: error.message 
+    });
+  }
+});
+
 export default app;
