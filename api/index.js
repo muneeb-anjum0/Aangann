@@ -369,12 +369,13 @@ app.get("/api/testimonials", async (req, res) => {
 // Authentication endpoints for admin panel
 app.get("/api/auth/me", async (req, res) => {
   try {
-    // For now, return a simple user object
-    // In a real app, you would verify JWT token here
     const authHeader = req.headers.authorization;
     
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({ error: "No token provided" });
+      return res.status(401).json({ 
+        error: "No token provided",
+        authenticated: false 
+      });
     }
     
     const token = authHeader.split(' ')[1];
@@ -385,28 +386,35 @@ app.get("/api/auth/me", async (req, res) => {
         id: 'admin-user',
         email: 'admin@aangan.com',
         name: 'Admin User',
-        role: 'admin'
+        role: 'admin',
+        authenticated: true
       });
     } else {
-      res.status(401).json({ error: "Invalid token" });
+      res.status(401).json({ 
+        error: "Invalid token",
+        authenticated: false 
+      });
     }
     
   } catch (error) {
     console.error("❌ Auth me error:", error);
     res.status(500).json({ 
       error: "Authentication failed", 
-      details: error.message 
+      details: error.message,
+      authenticated: false
     });
   }
 });
 
 app.post("/api/auth/login", async (req, res) => {
   try {
+    console.log("🔐 Login attempt:", req.body);
     const { email, password } = req.body;
     
     // Simple hardcoded admin credentials
     // In production, you would hash passwords and store in database
     if (email === 'admin@aangan.com' && password === 'admin123') {
+      console.log("✅ Login successful for:", email);
       res.json({
         token: 'admin-token',
         user: {
@@ -417,6 +425,7 @@ app.post("/api/auth/login", async (req, res) => {
         }
       });
     } else {
+      console.log("❌ Invalid credentials for:", email);
       res.status(401).json({ error: "Invalid credentials" });
     }
     
