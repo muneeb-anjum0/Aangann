@@ -1,67 +1,56 @@
 import express from "express";
 import admin from 'firebase-admin';
-import { writeFileSync, mkdirSync } from 'fs';
-import { dirname } from 'path';
 
 // Initialize Firebase
 let db;
 let firebaseError = null;
+let isInitialized = false;
 
-try {
-  console.log("🔥 Starting Firebase initialization...");
-  console.log("Environment check:", {
-    hasServiceKey: !!process.env.FIREBASE_SERVICE_ACCOUNT_KEY,
-    storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
-    nodeEnv: process.env.NODE_ENV
-  });
+async function initializeFirebase() {
+  if (isInitialized) return;
   
-  if (process.env.FIREBASE_SERVICE_ACCOUNT_KEY && !admin.apps.length) {
-    console.log("🔑 Decoding service account key...");
-    const serviceAccountString = Buffer.from(process.env.FIREBASE_SERVICE_ACCOUNT_KEY, 'base64').toString();
-    console.log("📝 Service account string length:", serviceAccountString.length);
+  try {
+    console.log("🔥 Starting Firebase initialization...");
     
-    const serviceAccount = JSON.parse(serviceAccountString);
-    console.log("🏷️ Service account project ID:", serviceAccount.project_id);
-    console.log("📧 Service account email:", serviceAccount.client_email);
-    
-    // Try creating the service account file for better compatibility
-    try {
-      const tempPath = '/tmp';
-      mkdirSync(tempPath, { recursive: true });
-      const keyPath = '/tmp/serviceAccountKey.json';
-      writeFileSync(keyPath, serviceAccountString);
-      process.env.GOOGLE_APPLICATION_CREDENTIALS = keyPath;
-      console.log("📄 Service account file created at:", keyPath);
-    } catch (fileError) {
-      console.warn("⚠️ Could not create service account file:", fileError.message);
+    if (!process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
+      throw new Error("FIREBASE_SERVICE_ACCOUNT_KEY environment variable not found");
     }
     
-    console.log("🚀 Initializing Firebase Admin SDK...");
-    admin.initializeApp({
-      credential: admin.credential.cert(serviceAccount),
-      projectId: serviceAccount.project_id
-    });
+    if (admin.apps.length === 0) {
+      console.log("🔑 Decoding service account key...");
+      const serviceAccountString = Buffer.from(process.env.FIREBASE_SERVICE_ACCOUNT_KEY, 'base64').toString();
+      const serviceAccount = JSON.parse(serviceAccountString);
+      
+      console.log("� Initializing Firebase Admin SDK...");
+      console.log("Project ID:", serviceAccount.project_id);
+      console.log("Client Email:", serviceAccount.client_email);
+      
+      admin.initializeApp({
+        credential: admin.credential.cert(serviceAccount),
+        projectId: serviceAccount.project_id
+      });
+      
+      console.log("✅ Firebase Admin SDK initialized");
+    }
     
-    console.log("✅ Firebase Admin SDK initialized");
+    db = admin.firestore();
+    
+    // Set explicit project for Firestore
+    process.env.GOOGLE_CLOUD_PROJECT = 'aangan-821e4';
+    process.env.GCLOUD_PROJECT = 'aangan-821e4';
+    
+    console.log("✅ Firestore connection established");
+    isInitialized = true;
+    
+  } catch (error) {
+    firebaseError = error;
+    console.error("❌ Firebase initialization error:", error);
+    throw error;
   }
-  
-  db = admin.firestore();
-  console.log("✅ Firestore connection established");
-  
-  // Set Firestore settings with explicit project configuration
-  db.settings({
-    ignoreUndefinedProperties: true
-  });
-  
-  // Force authentication by setting the project explicitly
-  process.env.GOOGLE_CLOUD_PROJECT = process.env.GOOGLE_CLOUD_PROJECT || 'aangan-821e4';
-  
-} catch (error) {
-  firebaseError = error;
-  console.error("❌ Firebase initialization error:", error);
-  console.error("Error details:", error.message);
-  console.error("Stack trace:", error.stack);
 }
+
+// Initialize Firebase immediately
+await initializeFirebase();
 
 const app = express();
 
@@ -218,6 +207,9 @@ app.get("/api/test", (req, res) => {
 app.get("/api/blogs", async (req, res) => {
   try {
     console.log("📚 Blogs endpoint called");
+    
+    // Ensure Firebase is initialized
+    await initializeFirebase();
     
     if (!db) {
       console.error("❌ Database not initialized");
