@@ -384,7 +384,7 @@ app.get("/api/auth/me", async (req, res) => {
     if (token === 'admin-token') {
       res.json({
         id: 'admin-user',
-        email: 'admin@aangan.com',
+        email: 'admin@aangan-pk.com',
         name: 'Admin User',
         role: 'admin',
         authenticated: true
@@ -413,13 +413,13 @@ app.post("/api/auth/login", async (req, res) => {
     
     // Simple hardcoded admin credentials
     // In production, you would hash passwords and store in database
-    if (email === 'admin@aangan.com' && password === 'admin123') {
+    if (email === 'admin@aangan-pk.com' && password === 'aangan@786!') {
       console.log("✅ Login successful for:", email);
       res.json({
         token: 'admin-token',
         user: {
           id: 'admin-user',
-          email: 'admin@aangan.com',
+          email: 'admin@aangan-pk.com',
           name: 'Admin User',
           role: 'admin'
         }
