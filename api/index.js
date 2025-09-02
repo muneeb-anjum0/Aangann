@@ -367,11 +367,23 @@ app.get("/api/testimonials", async (req, res) => {
 });
 
 // Authentication endpoints for admin panel
+// Store active sessions with expiration
+const activeSessions = new Map();
+
+// Clean up expired sessions every 5 minutes
+setInterval(() => {
+  const now = Date.now();
+  for (const [token, session] of activeSessions.entries()) {
+    if (now > session.expiresAt) {
+      activeSessions.delete(token);
+      console.log(`🧹 Expired session cleaned up: ${token}`);
+    }
+  }
+}, 5 * 60 * 1000); // 5 minutes
+
 app.get("/api/auth/me", async (req, res) => {
   try {
     // Check for token in cookies
-    console.log("🍪 All cookies:", req.headers.cookie);
-    
     let token = null;
     if (req.headers.cookie) {
       const cookies = req.headers.cookie.split(';');
@@ -384,8 +396,6 @@ app.get("/api/auth/me", async (req, res) => {
       }
     }
     
-    console.log("🔑 Extracted token:", token);
-    
     if (!token) {
       return res.status(401).json({ 
         message: "Unauthorized",
@@ -393,34 +403,30 @@ app.get("/api/auth/me", async (req, res) => {
       });
     }
     
-    // Check if token is valid and not expired
-    if (token.startsWith('admin-token-')) {
-      const timestamp = parseInt(token.split('-')[2]);
-      const now = Date.now();
-      const fifteenMinutes = 15 * 60 * 1000; // 15 minutes in ms
-      
-      // Check if token is expired
-      if (now - timestamp > fifteenMinutes) {
-        console.log("🕒 Token expired, age:", Math.round((now - timestamp) / 1000 / 60), "minutes");
-        return res.status(401).json({ 
-          message: "Session expired",
-          authenticated: false 
-        });
-      }
-      
-      console.log("✅ Token valid, age:", Math.round((now - timestamp) / 1000 / 60), "minutes");
-      res.json({
-        id: 'admin-user',
-        email: 'admin@aangan-pk.com',
-        role: 'admin'
-      });
-    } else {
-      console.log("❌ Invalid token format");
-      res.status(401).json({ 
-        message: "Unauthorized",
+    // Check if session exists and is not expired
+    const session = activeSessions.get(token);
+    if (!session) {
+      return res.status(401).json({ 
+        message: "Session expired or invalid",
         authenticated: false 
       });
     }
+    
+    // Check if session has expired (15 minutes)
+    if (Date.now() > session.expiresAt) {
+      activeSessions.delete(token);
+      return res.status(401).json({ 
+        message: "Session expired",
+        authenticated: false 
+      });
+    }
+    
+    // Session is valid
+    res.json({
+      id: session.userId,
+      email: session.email,
+      role: session.role
+    });
     
   } catch (error) {
     console.error("❌ Auth me error:", error);
@@ -438,20 +444,29 @@ app.post("/api/auth/login", async (req, res) => {
     
     // Simple hardcoded admin credentials
     if (email === 'admin@aangan-pk.com' && password === 'aangan@786!') {
-      // Create a unique token with timestamp
-      const timestamp = Date.now();
-      const token = `admin-token-${timestamp}`;
+      // Generate unique session token
+      const sessionToken = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       
-      // Set cookie with proper expiration - 15 minutes
-      res.cookie('token', token, {
+      // Create session with 15-minute expiration
+      const expiresAt = Date.now() + (15 * 60 * 1000); // 15 minutes from now
+      
+      activeSessions.set(sessionToken, {
+        userId: 'admin-user',
+        email: 'admin@aangan-pk.com',
+        role: 'admin',
+        createdAt: Date.now(),
+        expiresAt: expiresAt
+      });
+      
+      // Set cookie with same expiration
+      res.cookie('token', sessionToken, {
         httpOnly: true,
         secure: true, // Vercel uses HTTPS
         sameSite: 'none', // For cross-origin requests
-        maxAge: 15 * 60 * 1000, // 15 minutes in milliseconds
-        path: '/' // Ensure cookie is available site-wide
+        maxAge: 15 * 60 * 1000 // 15 minutes
       });
       
-      console.log("✅ Login successful, token set:", token);
+      console.log(`✅ New session created: ${sessionToken}, expires at: ${new Date(expiresAt).toISOString()}`);
       
       res.json({
         id: 'admin-user',
@@ -473,26 +488,32 @@ app.post("/api/auth/login", async (req, res) => {
 
 app.post("/api/auth/logout", async (req, res) => {
   try {
-    console.log("🚪 Logout requested");
+    // Get token from cookies
+    let token = null;
+    if (req.headers.cookie) {
+      const cookies = req.headers.cookie.split(';');
+      for (const cookie of cookies) {
+        const [name, value] = cookie.trim().split('=');
+        if (name === 'token') {
+          token = value;
+          break;
+        }
+      }
+    }
     
-    // Clear the cookie with the same settings used to set it
+    // Remove session from active sessions
+    if (token && activeSessions.has(token)) {
+      activeSessions.delete(token);
+      console.log(`🚪 Session logged out: ${token}`);
+    }
+    
+    // Clear the cookie
     res.clearCookie('token', {
       httpOnly: true,
       secure: true,
-      sameSite: 'none',
-      path: '/'
+      sameSite: 'none'
     });
     
-    // Also set an expired cookie to ensure it's removed
-    res.cookie('token', '', {
-      httpOnly: true,
-      secure: true,
-      sameSite: 'none',
-      path: '/',
-      expires: new Date(0) // Expire immediately
-    });
-    
-    console.log("✅ Cookie cleared, logout successful");
     res.json({ ok: true });
     
   } catch (error) {
