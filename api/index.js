@@ -369,10 +369,22 @@ app.get("/api/testimonials", async (req, res) => {
 // Authentication endpoints for admin panel
 app.get("/api/auth/me", async (req, res) => {
   try {
-    // Check for token in cookies (like the old server expected)
-    const token = req.headers.cookie?.split(';')
-      .find(c => c.trim().startsWith('token='))
-      ?.split('=')[1];
+    // Check for token in cookies
+    console.log("🍪 All cookies:", req.headers.cookie);
+    
+    let token = null;
+    if (req.headers.cookie) {
+      const cookies = req.headers.cookie.split(';');
+      for (const cookie of cookies) {
+        const [name, value] = cookie.trim().split('=');
+        if (name === 'token') {
+          token = value;
+          break;
+        }
+      }
+    }
+    
+    console.log("🔑 Extracted token:", token);
     
     if (!token) {
       return res.status(401).json({ 
