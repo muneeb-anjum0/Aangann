@@ -203,46 +203,97 @@ app.get("/api/test", (req, res) => {
   });
 });
 
-// Blog endpoints
+// Blog endpoints with REST API fallback
 app.get("/api/blogs", async (req, res) => {
   try {
     console.log("📚 Blogs endpoint called");
     
-    // Ensure Firebase is initialized
-    await initializeFirebase();
-    
-    if (!db) {
-      console.error("❌ Database not initialized");
-      return res.status(500).json({ 
-        error: "Database not initialized",
-        firebaseError: firebaseError?.message || "Unknown Firebase error"
-      });
+    // Try Firebase Admin SDK first
+    try {
+      await initializeFirebase();
+      
+      if (db) {
+        console.log("🔍 Trying Firebase Admin SDK...");
+        const blogsRef = db.collection('blogs');
+        const snapshot = await blogsRef.limit(10).get();
+        
+        const blogs = [];
+        snapshot.forEach(doc => {
+          const data = doc.data();
+          blogs.push({
+            id: doc.id,
+            _id: doc.id,
+            ...data,
+            createdAt: data.createdAt?.toDate?.()?.toISOString() || data.createdAt,
+            updatedAt: data.updatedAt?.toDate?.()?.toISOString() || data.updatedAt
+          });
+        });
+        
+        console.log(`✅ Admin SDK success: ${blogs.length} blogs`);
+        return res.json(blogs);
+      }
+    } catch (adminError) {
+      console.warn("⚠️ Admin SDK failed, trying REST API:", adminError.message);
     }
     
-    console.log("🔍 Querying blogs collection...");
-    const blogsRef = db.collection('blogs');
+    // Fallback to Firebase REST API
+    console.log("🔄 Using Firebase REST API...");
     
-    // Simple get without listing collections first
-    const snapshot = await blogsRef.limit(10).get();
+    const serviceAccountString = Buffer.from(process.env.FIREBASE_SERVICE_ACCOUNT_KEY, 'base64').toString();
+    const serviceAccount = JSON.parse(serviceAccountString);
+    const projectId = serviceAccount.project_id;
     
-    console.log(`📄 Found ${snapshot.size} blogs`);
+    // Create access token manually
+    const jwt = await import('jsonwebtoken');
+    const now = Math.floor(Date.now() / 1000);
+    const payload = {
+      iss: serviceAccount.client_email,
+      sub: serviceAccount.client_email,
+      aud: 'https://oauth2.googleapis.com/token',
+      iat: now,
+      exp: now + 3600,
+      scope: 'https://www.googleapis.com/auth/datastore'
+    };
     
-    const blogs = [];
-    snapshot.forEach(doc => {
-      const data = doc.data();
-      console.log(`📄 Blog: ${doc.id}`, Object.keys(data));
-      blogs.push({
-        id: doc.id,
-        _id: doc.id,
-        ...data,
-        // Convert Firestore timestamps to ISO strings
-        createdAt: data.createdAt?.toDate?.()?.toISOString() || data.createdAt,
-        updatedAt: data.updatedAt?.toDate?.()?.toISOString() || data.updatedAt
-      });
+    const token = jwt.sign(payload, serviceAccount.private_key, { algorithm: 'RS256' });
+    
+    // Get access token
+    const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: `grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=${token}`
     });
     
-    console.log(`✅ Returning ${blogs.length} blogs`);
+    const tokenData = await tokenResponse.json();
+    
+    // Query Firestore REST API
+    const firestoreUrl = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/blogs?pageSize=10`;
+    const firestoreResponse = await fetch(firestoreUrl, {
+      headers: { 'Authorization': `Bearer ${tokenData.access_token}` }
+    });
+    
+    const data = await firestoreResponse.json();
+    
+    // Transform Firestore REST response
+    const blogs = (data.documents || []).map(doc => {
+      const fields = doc.fields || {};
+      const transformed = {};
+      
+      // Convert Firestore field format to regular object
+      for (const [key, field] of Object.entries(fields)) {
+        if (field.stringValue) transformed[key] = field.stringValue;
+        else if (field.integerValue) transformed[key] = parseInt(field.integerValue);
+        else if (field.timestampValue) transformed[key] = field.timestampValue;
+        else if (field.arrayValue) transformed[key] = field.arrayValue.values || [];
+      }
+      
+      const docId = doc.name.split('/').pop();
+      return { id: docId, _id: docId, ...transformed };
+    });
+    
+    console.log(`✅ REST API success: ${blogs.length} blogs`);
     res.json(blogs);
+    
   } catch (error) {
     console.error("❌ Error fetching blogs:", error);
     res.status(500).json({ 
