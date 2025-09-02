@@ -1,0 +1,256 @@
+/* --- Skeleton shimmer animation for loading placeholders --- */
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background-color: #e5e7eb !important; /* Tailwind neutral-200 */
+}
+.skeleton-fadein {
+  animation: skeleton-fadein-top 0.7s cubic-bezier(0.4,0,0.2,1) 1;
+}
+@keyframes skeleton-fadein-top {
+  0% {
+    opacity: 0;
+    transform: translateY(-32px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.skeleton::after {
+  content: "";
+  position: absolute;
+  top: 0; left: -150px; height: 100%; width: 150px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.5), transparent);
+  animation: skeleton-shimmer 1.2s infinite;
+}
+@keyframes skeleton-shimmer {
+  0% { left: -150px; }
+  100% { left: 100%; }
+}
+/* Hide scrollbar for all browsers (html and body) */
+html, body {
+  scrollbar-width: none !important; /* Firefox */
+  -ms-overflow-style: none !important;  /* IE and Edge */
+  overflow: -moz-scrollbars-none !important;
+  touch-action: pan-y;
+}
+html::-webkit-scrollbar, body::-webkit-scrollbar {
+  display: none !important; /* Chrome, Safari, Opera */
+}
+/* Hide scrollbar for all browsers */
+body {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none;  /* IE and Edge */
+  user-select: none;
+  -webkit-user-select: none; /* Safari */
+  -ms-user-select: none;     /* IE10+/Edge */
+}
+body::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
+}
+/* src/index.css */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer utilities { .bg-site { background-color: #fdf8f7; } }
+
+/* site-wide watercolor clouds without horizontal scroll */
+@layer base {
+  body::before,
+  body::after {
+    content: "";
+    position: fixed;
+    pointer-events: none;
+    z-index: -1;
+    background-repeat: no-repeat;
+    background-size: 520px auto;
+    opacity: 0.6;
+  }
+  body::before {
+    top: 0; left: -160px; width: 520px; height: 700px;
+  /* background-image removed: missing file ./assets/blog-img/bgLeft.svg */
+  }
+  body::after {
+    top: 0; right: -160px; width: 520px; height: 700px;
+  /* background-image removed: missing file ./assets/blog-img/bgLeft.svg */
+    transform: scaleX(-1);
+  }
+}
+
+html,body,#root{height:100%}
+body{@apply bg-site text-neutral-900 overflow-x-hidden}
+
+.container-wide{@apply max-w-6xl mx-auto px-4}
+.h1{@apply text-3xl md:text-5xl font-semibold tracking-tight}
+.h2{@apply text-2xl md:text-3xl font-semibold}
+
+/* Blog typography */
+.prose-aangan{ @apply prose prose-lg md:prose-xl prose-p:leading-relaxed max-w-none; }
+.prose-aangan :where(h2){@apply font-semibold tracking-tight}
+.prose-aangan :where(h3){@apply font-semibold}
+.prose-aangan :where(blockquote){@apply border-l-4 border-pink-300 bg-pink-50 py-2}
+
+/* ---------------- Liquid Glass primitives ---------------- */
+@layer components {
+  .glass {
+    @apply bg-white/40 border border-white/50 backdrop-blur-xl shadow-[inset_0_1px_0_rgba(255,255,255,.6),0_8px_24px_rgba(0,0,0,.06)];
+  }
+  .panel-glass { @apply glass rounded-2xl p-5; }
+  .glass-inner { @apply rounded-xl border border-white/30 bg-white/50 backdrop-blur; }
+
+  /* Inputs */
+  .input-glass {
+    @apply w-full rounded-xl border border-white/60 bg-white/60 backdrop-blur px-4 py-3 outline-none;
+  }
+
+  /* Chips */
+  .chip { @apply inline-flex items-center h-5 px-2 rounded-full text-xs; }
+  .chip-emerald { @apply bg-emerald-100 text-emerald-700; }
+
+  /* squircle-ish rounding */
+  .squircle { border-radius: 18px; }
+}
+
+/* ---------------- Liquid Glass Navbar ---------------- */
+.glass-nav {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: transparent;
+}
+.nav-shell {
+  background: linear-gradient(180deg, rgba(255,255,255,.55), rgba(255,255,255,.28));
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border: 1px solid rgba(255,255,255,.55);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.6),
+    0 12px 28px rgba(2,6,23,.06);
+}
+
+/* Tab rail and buttons */
+.tab-rail {
+  display: inline-flex;
+  align-items: center;
+  background: rgba(255,255,255,.28);
+  border: 1px solid rgba(255,255,255,.5);
+  padding: 2px;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.6);
+  border-radius: 12px;
+}
+.btn-tab {
+  position: relative;
+  border: 1px solid transparent;
+  color: rgb(64,64,64);
+  background: transparent;
+  transition: color .2s ease, background .25s ease, box-shadow .25s ease;
+}
+.btn-tab.is-active {
+  color: rgb(23,23,23);
+  background: rgba(255,255,255,.8);
+  box-shadow: 0 8px 20px rgba(2,6,23,.08), inset 0 1px 0 rgba(255,255,255,.9);
+}
+.btn-tab.is-idle:hover { color: rgb(28,28,28); }
+
+/* ---------------- Liquid Buttons ---------------- */
+.btn-liquid {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: .5rem;
+  border-radius: 18px;
+  padding: .5rem .875rem;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  transition: transform .2s ease, box-shadow .2s ease, background .2s ease, border-color .2s ease;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.65), 0 8px 24px rgba(2,6,23,.06);
+}
+.btn-liquid::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background:
+    radial-gradient(120% 120% at 10% 10%, rgba(255,255,255,.95), transparent 40%),
+    radial-gradient(90% 90% at 85% 0%, rgba(255,255,255,.45), transparent 50%);
+  pointer-events: none;
+  opacity: .6;
+}
+.btn-liquid:hover { transform: translateY(-1px); box-shadow: inset 0 1px 0 rgba(255,255,255,.75), 0 12px 28px rgba(2,6,23,.1); }
+.btn-liquid:active { transform: scale(.97); }
+
+/* Ghost (transparent) glass */
+.btn-liquid--ghost {
+  color: rgb(23,23,23);
+  background: linear-gradient(180deg, rgba(255,255,255,.6), rgba(255,255,255,.25));
+  border: 1px solid rgba(255,255,255,.6);
+}
+
+/* Brand-tinted glass (pink) */
+.btn-liquid--brand {
+  color: white;
+  background: linear-gradient(180deg, rgba(236,72,153,.55), rgba(236,72,153,.28));
+  border: 1px solid rgba(255,255,255,.55);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.6),
+    0 10px 28px rgba(236,72,153,.25);
+}
+.btn-liquid--brand:hover {
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.75),
+    0 16px 32px rgba(236,72,153,.35);
+}
+
+/* Danger-tinted glass (rose) */
+.btn-liquid--danger {
+  color: white;
+  background: linear-gradient(180deg, rgba(244,63,94,.55), rgba(244,63,94,.28));
+  border: 1px solid rgba(255,255,255,.55);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.6),
+    0 10px 28px rgba(244,63,94,.25);
+}
+.btn-liquid--danger:hover {
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.75),
+    0 16px 32px rgba(244,63,94,.35);
+}
+
+/* ---------------- Utilities & extras ---------------- */
+@layer utilities {
+  .shadow-soft { box-shadow: 0 10px 30px rgba(0,0,0,.06), inset 0 1px 0 rgba(255,255,255,.35); }
+  .shadow-glow { box-shadow: 0 8px 24px rgba(236,72,153,.25), inset 0 1px 0 rgba(255,255,255,.35); }
+}
+
+/* Green only inside the button — no outside glow */
+.glow-green {
+  background: linear-gradient(135deg, rgba(16,185,129,.16), rgba(16,185,129,.08));
+  box-shadow:
+    inset 0 0 0 2px rgba(16,185,129,.45),
+    inset 0 8px 18px rgba(16,185,129,.12);
+  border: 1px solid rgba(16,185,129,.35);
+}
+.glow-green:hover {
+  box-shadow:
+    inset 0 0 0 2px rgba(16,185,129,.65),
+    inset 0 10px 22px rgba(16,185,129,.16);
+  border-color: rgba(16,185,129,.55);
+}
+
+/* Pink-accent cards on editor side panel */
+@layer components {
+  .card-accent {
+    @apply rounded-2xl border-2 border-pink-200 bg-white/80 p-3;
+  }
+}
+
+/* src/index.css (additions at the end) */
+@layer utilities {
+  /* hide scrollbar for KPI horizontal scroll on small screens */
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+}
