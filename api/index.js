@@ -15,15 +15,19 @@ try {
   
   if (process.env.FIREBASE_SERVICE_ACCOUNT_KEY && !admin.apps.length) {
     console.log("🔑 Decoding service account key...");
-    const serviceAccount = JSON.parse(
-      Buffer.from(process.env.FIREBASE_SERVICE_ACCOUNT_KEY, 'base64').toString()
-    );
+    const serviceAccountString = Buffer.from(process.env.FIREBASE_SERVICE_ACCOUNT_KEY, 'base64').toString();
+    console.log("📝 Service account string length:", serviceAccountString.length);
     
-    console.log("🚀 Initializing Firebase Admin SDK...");
+    const serviceAccount = JSON.parse(serviceAccountString);
+    console.log("🏷️ Service account project ID:", serviceAccount.project_id);
+    console.log("� Service account email:", serviceAccount.client_email);
+    
+    console.log("�🚀 Initializing Firebase Admin SDK...");
     admin.initializeApp({
       credential: admin.credential.cert(serviceAccount),
       projectId: serviceAccount.project_id,
-      storageBucket: process.env.FIREBASE_STORAGE_BUCKET || 'aangan-821e4.appspot.com'
+      databaseURL: `https://${serviceAccount.project_id}-default-rtdb.firebaseio.com/`,
+      storageBucket: `${serviceAccount.project_id}.appspot.com`
     });
     
     console.log("✅ Firebase Admin SDK initialized");
@@ -31,10 +35,17 @@ try {
   
   db = admin.firestore();
   console.log("✅ Firestore connection established");
+  
+  // Set Firestore settings
+  db.settings({
+    ignoreUndefinedProperties: true
+  });
+  
 } catch (error) {
   firebaseError = error;
   console.error("❌ Firebase initialization error:", error);
   console.error("Error details:", error.message);
+  console.error("Stack trace:", error.stack);
 }
 
 const app = express();
@@ -77,37 +88,47 @@ app.get("/api/firebase-test", async (req, res) => {
       return res.status(500).json({ error: "Database not initialized" });
     }
     
-    console.log("🧪 Testing Firebase connection...");
+    console.log("🧪 Testing basic Firebase connection...");
     
-    // Try to read from a simple collection first
-    const testRef = db.collection('test');
-    const testDoc = await testRef.add({ 
-      test: true, 
-      timestamp: new Date(),
-      message: "Connection test from API"
+    // First, let's try to get project info (doesn't require Firestore permissions)
+    const app = admin.app();
+    const projectId = app.options.projectId;
+    
+    console.log("📱 Firebase app info:", {
+      projectId,
+      name: app.name
     });
     
-    console.log("✅ Test document created:", testDoc.id);
+    // Now try the simplest Firestore operation - get a non-existent document
+    // This should work even with minimal permissions
+    console.log("🔍 Testing Firestore access...");
+    const testRef = db.collection('_test_connection_').doc('_test_doc_');
+    const doc = await testRef.get();
     
-    // Now try to read it back
-    const doc = await testRef.doc(testDoc.id).get();
-    const data = doc.data();
-    
-    // Clean up - delete the test document
-    await testRef.doc(testDoc.id).delete();
+    console.log("✅ Firestore access successful - document exists:", doc.exists);
     
     res.json({ 
       success: true,
       message: "Firebase connection working!",
-      testData: data,
-      documentId: testDoc.id
+      projectId,
+      firestoreAccess: true,
+      documentExists: doc.exists
     });
   } catch (error) {
     console.error("❌ Firebase test error:", error);
+    
+    // More detailed error info
+    const errorInfo = {
+      message: error.message,
+      code: error.code,
+      status: error.status,
+      details: error.details || "No additional details"
+    };
+    
     res.status(500).json({ 
       error: "Firebase test failed", 
-      details: error.message,
-      code: error.code 
+      ...errorInfo,
+      suggestion: error.code === 16 ? "Service account may not have Firestore permissions" : "Unknown Firebase error"
     });
   }
 });
