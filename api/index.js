@@ -411,6 +411,12 @@ app.post("/api/auth/login", async (req, res) => {
     console.log("🔐 Login attempt:", req.body);
     const { email, password } = req.body;
     
+    // Debug: log exact values
+    console.log("Received email:", JSON.stringify(email));
+    console.log("Received password:", JSON.stringify(password));
+    console.log("Expected email:", JSON.stringify('admin@aangan-pk.com'));
+    console.log("Expected password:", JSON.stringify('aangan@786!'));
+    
     // Simple hardcoded admin credentials
     // In production, you would hash passwords and store in database
     if (email === 'admin@aangan-pk.com' && password === 'aangan@786!') {
@@ -426,7 +432,17 @@ app.post("/api/auth/login", async (req, res) => {
       });
     } else {
       console.log("❌ Invalid credentials for:", email);
-      res.status(401).json({ error: "Invalid credentials" });
+      console.log("Email matches:", email === 'admin@aangan-pk.com');
+      console.log("Password matches:", password === 'aangan@786!');
+      res.status(401).json({ 
+        error: "Invalid credentials",
+        debug: {
+          receivedEmail: email,
+          receivedPassword: password,
+          emailMatches: email === 'admin@aangan-pk.com',
+          passwordMatches: password === 'aangan@786!'
+        }
+      });
     }
     
   } catch (error) {
