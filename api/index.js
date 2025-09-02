@@ -393,14 +393,29 @@ app.get("/api/auth/me", async (req, res) => {
       });
     }
     
-    // Simple token validation
-    if (token === 'admin-token') {
+    // Check if token is valid and not expired
+    if (token.startsWith('admin-token-')) {
+      const timestamp = parseInt(token.split('-')[2]);
+      const now = Date.now();
+      const fifteenMinutes = 15 * 60 * 1000; // 15 minutes in ms
+      
+      // Check if token is expired
+      if (now - timestamp > fifteenMinutes) {
+        console.log("🕒 Token expired, age:", Math.round((now - timestamp) / 1000 / 60), "minutes");
+        return res.status(401).json({ 
+          message: "Session expired",
+          authenticated: false 
+        });
+      }
+      
+      console.log("✅ Token valid, age:", Math.round((now - timestamp) / 1000 / 60), "minutes");
       res.json({
         id: 'admin-user',
         email: 'admin@aangan-pk.com',
         role: 'admin'
       });
     } else {
+      console.log("❌ Invalid token format");
       res.status(401).json({ 
         message: "Unauthorized",
         authenticated: false 
@@ -423,13 +438,20 @@ app.post("/api/auth/login", async (req, res) => {
     
     // Simple hardcoded admin credentials
     if (email === 'admin@aangan-pk.com' && password === 'aangan@786!') {
-      // Set cookie like the old server did
-      res.cookie('token', 'admin-token', {
+      // Create a unique token with timestamp
+      const timestamp = Date.now();
+      const token = `admin-token-${timestamp}`;
+      
+      // Set cookie with proper expiration - 15 minutes
+      res.cookie('token', token, {
         httpOnly: true,
         secure: true, // Vercel uses HTTPS
         sameSite: 'none', // For cross-origin requests
-        maxAge: 15 * 60 * 1000 // 15 minutes
+        maxAge: 15 * 60 * 1000, // 15 minutes in milliseconds
+        path: '/' // Ensure cookie is available site-wide
       });
+      
+      console.log("✅ Login successful, token set:", token);
       
       res.json({
         id: 'admin-user',
@@ -451,8 +473,26 @@ app.post("/api/auth/login", async (req, res) => {
 
 app.post("/api/auth/logout", async (req, res) => {
   try {
-    // Clear the cookie
-    res.clearCookie('token');
+    console.log("🚪 Logout requested");
+    
+    // Clear the cookie with the same settings used to set it
+    res.clearCookie('token', {
+      httpOnly: true,
+      secure: true,
+      sameSite: 'none',
+      path: '/'
+    });
+    
+    // Also set an expired cookie to ensure it's removed
+    res.cookie('token', '', {
+      httpOnly: true,
+      secure: true,
+      sameSite: 'none',
+      path: '/',
+      expires: new Date(0) // Expire immediately
+    });
+    
+    console.log("✅ Cookie cleared, logout successful");
     res.json({ ok: true });
     
   } catch (error) {
