@@ -1,5 +1,7 @@
 import express from "express";
 import admin from 'firebase-admin';
+import { writeFileSync, mkdirSync } from 'fs';
+import { dirname } from 'path';
 
 // Initialize Firebase
 let db;
@@ -21,6 +23,18 @@ try {
     const serviceAccount = JSON.parse(serviceAccountString);
     console.log("🏷️ Service account project ID:", serviceAccount.project_id);
     console.log("📧 Service account email:", serviceAccount.client_email);
+    
+    // Try creating the service account file for better compatibility
+    try {
+      const tempPath = '/tmp';
+      mkdirSync(tempPath, { recursive: true });
+      const keyPath = '/tmp/serviceAccountKey.json';
+      writeFileSync(keyPath, serviceAccountString);
+      process.env.GOOGLE_APPLICATION_CREDENTIALS = keyPath;
+      console.log("📄 Service account file created at:", keyPath);
+    } catch (fileError) {
+      console.warn("⚠️ Could not create service account file:", fileError.message);
+    }
     
     console.log("🚀 Initializing Firebase Admin SDK...");
     admin.initializeApp({
