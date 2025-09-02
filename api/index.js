@@ -75,6 +75,38 @@ app.get("/api/test", (req, res) => {
   });
 });
 
+// Firebase diagnostic endpoint
+app.get("/api/firebase-check", (req, res) => {
+  try {
+    const hasFirebaseKey = !!process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
+    let keyInfo = null;
+    
+    if (hasFirebaseKey) {
+      try {
+        const serviceAccountKey = Buffer.from(process.env.FIREBASE_SERVICE_ACCOUNT_KEY, 'base64').toString();
+        const serviceAccount = JSON.parse(serviceAccountKey);
+        keyInfo = {
+          projectId: serviceAccount.project_id,
+          clientEmail: serviceAccount.client_email,
+          hasPrivateKey: !!serviceAccount.private_key,
+          privateKeyLength: serviceAccount.private_key ? serviceAccount.private_key.length : 0
+        };
+      } catch (parseError) {
+        keyInfo = { error: "Failed to parse service account key", details: parseError.message };
+      }
+    }
+    
+    res.json({
+      hasFirebaseKey,
+      keyInfo,
+      firebaseInitialized,
+      adminAppsCount: admin.apps.length
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Blogs endpoint
 app.get("/api/blogs", async (req, res) => {
   try {
