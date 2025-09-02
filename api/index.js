@@ -276,19 +276,45 @@ app.get("/api/blogs", async (req, res) => {
     const data = await firestoreResponse.json();
     
     // Transform Firestore REST response
+    console.log("📄 Raw Firestore response:", JSON.stringify(data, null, 2));
+    
     const blogs = (data.documents || []).map(doc => {
+      console.log("Processing document:", doc.name);
       const fields = doc.fields || {};
       const transformed = {};
       
       // Convert Firestore field format to regular object
       for (const [key, field] of Object.entries(fields)) {
-        if (field.stringValue) transformed[key] = field.stringValue;
-        else if (field.integerValue) transformed[key] = parseInt(field.integerValue);
-        else if (field.timestampValue) transformed[key] = field.timestampValue;
-        else if (field.arrayValue) transformed[key] = field.arrayValue.values || [];
+        console.log(`Field ${key}:`, field);
+        if (field.stringValue !== undefined) transformed[key] = field.stringValue;
+        else if (field.integerValue !== undefined) transformed[key] = parseInt(field.integerValue);
+        else if (field.doubleValue !== undefined) transformed[key] = parseFloat(field.doubleValue);
+        else if (field.booleanValue !== undefined) transformed[key] = field.booleanValue;
+        else if (field.timestampValue !== undefined) transformed[key] = field.timestampValue;
+        else if (field.arrayValue !== undefined) {
+          transformed[key] = (field.arrayValue.values || []).map(item => {
+            if (item.stringValue) return item.stringValue;
+            if (item.integerValue) return parseInt(item.integerValue);
+            return item;
+          });
+        }
+        else if (field.mapValue !== undefined) {
+          const obj = {};
+          for (const [subKey, subField] of Object.entries(field.mapValue.fields || {})) {
+            if (subField.stringValue) obj[subKey] = subField.stringValue;
+            else if (subField.integerValue) obj[subKey] = parseInt(subField.integerValue);
+            else obj[subKey] = subField;
+          }
+          transformed[key] = obj;
+        }
+        else {
+          console.log(`Unknown field type for ${key}:`, Object.keys(field));
+          transformed[key] = field;
+        }
       }
       
       const docId = doc.name.split('/').pop();
+      console.log(`Transformed document ${docId}:`, transformed);
       return { id: docId, _id: docId, ...transformed };
     });
     
