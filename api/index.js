@@ -26,6 +26,8 @@ async function initFirebase() {
   if (firebaseInitialized) return;
   
   try {
+    console.log("🔥 Starting Firebase initialization...");
+    
     if (!process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
       throw new Error("Missing FIREBASE_SERVICE_ACCOUNT_KEY");
     }
@@ -34,20 +36,34 @@ async function initFirebase() {
       const serviceAccountKey = Buffer.from(process.env.FIREBASE_SERVICE_ACCOUNT_KEY, 'base64').toString();
       const serviceAccount = JSON.parse(serviceAccountKey);
       
+      console.log("📝 Initializing with project:", serviceAccount.project_id);
+      console.log("📧 Service account:", serviceAccount.client_email);
+      
       admin.initializeApp({
         credential: admin.credential.cert(serviceAccount),
         projectId: serviceAccount.project_id
       });
+      
+      console.log("✅ Firebase Admin SDK initialized");
     }
     
     db = admin.firestore();
     firebaseInitialized = true;
-    console.log("✅ Firebase initialized");
+    console.log("✅ Firebase initialized successfully");
   } catch (error) {
     console.error("❌ Firebase init failed:", error.message);
     throw error;
   }
 }
+
+// Initialize Firebase immediately when the module loads
+(async () => {
+  try {
+    await initFirebase();
+  } catch (error) {
+    console.error("Failed to initialize Firebase on startup:", error);
+  }
+})();
 
 // Root endpoint
 app.get("/", (req, res) => {
