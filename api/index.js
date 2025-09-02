@@ -244,7 +244,8 @@ app.get("/api/blogs", async (req, res) => {
     const projectId = serviceAccount.project_id;
     
     // Create access token manually
-    const jwt = await import('jsonwebtoken');
+    const jwtModule = await import('jsonwebtoken');
+    const jwt = jwtModule.default;
     const now = Math.floor(Date.now() / 1000);
     const payload = {
       iss: serviceAccount.client_email,
