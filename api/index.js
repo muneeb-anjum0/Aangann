@@ -3,22 +3,37 @@ import admin from 'firebase-admin';
 
 // Initialize Firebase
 let db;
+let firebaseError = null;
+
 try {
+  console.log("🔥 Starting Firebase initialization...");
+  console.log("Environment check:", {
+    hasServiceKey: !!process.env.FIREBASE_SERVICE_ACCOUNT_KEY,
+    storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
+    nodeEnv: process.env.NODE_ENV
+  });
+  
   if (process.env.FIREBASE_SERVICE_ACCOUNT_KEY && !admin.apps.length) {
+    console.log("🔑 Decoding service account key...");
     const serviceAccount = JSON.parse(
       Buffer.from(process.env.FIREBASE_SERVICE_ACCOUNT_KEY, 'base64').toString()
     );
     
+    console.log("🚀 Initializing Firebase Admin SDK...");
     admin.initializeApp({
       credential: admin.credential.cert(serviceAccount),
       storageBucket: process.env.FIREBASE_STORAGE_BUCKET || 'aangan-821e4.appspot.com'
     });
+    
+    console.log("✅ Firebase Admin SDK initialized");
   }
   
   db = admin.firestore();
-  console.log("Firebase initialized successfully");
+  console.log("✅ Firestore connection established");
 } catch (error) {
-  console.error("Firebase initialization error:", error);
+  firebaseError = error;
+  console.error("❌ Firebase initialization error:", error);
+  console.error("Error details:", error.message);
 }
 
 const app = express();
@@ -55,6 +70,23 @@ app.get("/api", (req, res) => {
 });
 
 // Test endpoints
+app.get("/api/debug", (req, res) => {
+  res.json({ 
+    message: "Debug endpoint",
+    firebase: {
+      initialized: !!db,
+      error: firebaseError?.message || null,
+      adminAppsLength: admin.apps.length
+    },
+    environment: {
+      NODE_ENV: process.env.NODE_ENV,
+      hasFirebaseKey: !!process.env.FIREBASE_SERVICE_ACCOUNT_KEY,
+      storageBucket: process.env.FIREBASE_STORAGE_BUCKET
+    },
+    timestamp: new Date().toISOString()
+  });
+});
+
 app.get("/api/test", (req, res) => {
   res.json({ 
     message: "Test endpoint working",
@@ -66,26 +98,44 @@ app.get("/api/test", (req, res) => {
 // Blog endpoints
 app.get("/api/blogs", async (req, res) => {
   try {
+    console.log("📚 Blogs endpoint called");
+    
     if (!db) {
-      return res.status(500).json({ error: "Database not initialized" });
+      console.error("❌ Database not initialized");
+      return res.status(500).json({ 
+        error: "Database not initialized",
+        firebaseError: firebaseError?.message || "Unknown Firebase error"
+      });
     }
     
+    console.log("🔍 Querying blogs collection...");
     const blogsRef = db.collection('blogs');
     const snapshot = await blogsRef.orderBy('createdAt', 'desc').get();
     
+    console.log(`📄 Found ${snapshot.size} blogs`);
+    
     const blogs = [];
     snapshot.forEach(doc => {
+      const data = doc.data();
       blogs.push({
         id: doc.id,
         _id: doc.id,
-        ...doc.data()
+        ...data,
+        // Convert Firestore timestamps to ISO strings
+        createdAt: data.createdAt?.toDate?.()?.toISOString() || data.createdAt,
+        updatedAt: data.updatedAt?.toDate?.()?.toISOString() || data.updatedAt
       });
     });
     
+    console.log(`✅ Returning ${blogs.length} blogs`);
     res.json(blogs);
   } catch (error) {
-    console.error("Error fetching blogs:", error);
-    res.status(500).json({ error: "Failed to fetch blogs", details: error.message });
+    console.error("❌ Error fetching blogs:", error);
+    res.status(500).json({ 
+      error: "Failed to fetch blogs", 
+      details: error.message,
+      code: error.code 
+    });
   }
 });
 
