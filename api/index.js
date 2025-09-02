@@ -369,29 +369,28 @@ app.get("/api/testimonials", async (req, res) => {
 // Authentication endpoints for admin panel
 app.get("/api/auth/me", async (req, res) => {
   try {
-    const authHeader = req.headers.authorization;
+    // Check for token in cookies (like the old server expected)
+    const token = req.headers.cookie?.split(';')
+      .find(c => c.trim().startsWith('token='))
+      ?.split('=')[1];
     
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    if (!token) {
       return res.status(401).json({ 
-        error: "No token provided",
+        message: "Unauthorized",
         authenticated: false 
       });
     }
     
-    const token = authHeader.split(' ')[1];
-    
-    // Simple token validation (you might want to use JWT verification)
+    // Simple token validation
     if (token === 'admin-token') {
       res.json({
         id: 'admin-user',
         email: 'admin@aangan-pk.com',
-        name: 'Admin User',
-        role: 'admin',
-        authenticated: true
+        role: 'admin'
       });
     } else {
       res.status(401).json({ 
-        error: "Invalid token",
+        message: "Unauthorized",
         authenticated: false 
       });
     }
@@ -399,7 +398,7 @@ app.get("/api/auth/me", async (req, res) => {
   } catch (error) {
     console.error("❌ Auth me error:", error);
     res.status(500).json({ 
-      error: "Authentication failed", 
+      message: "Authentication failed", 
       details: error.message,
       authenticated: false
     });
@@ -411,25 +410,28 @@ app.post("/api/auth/login", async (req, res) => {
     const { email, password } = req.body;
     
     // Simple hardcoded admin credentials
-    // In production, you would hash passwords and store in database
     if (email === 'admin@aangan-pk.com' && password === 'aangan@786!') {
+      // Set cookie like the old server did
+      res.cookie('token', 'admin-token', {
+        httpOnly: true,
+        secure: true, // Vercel uses HTTPS
+        sameSite: 'none', // For cross-origin requests
+        maxAge: 15 * 60 * 1000 // 15 minutes
+      });
+      
       res.json({
-        token: 'admin-token',
-        user: {
-          id: 'admin-user',
-          email: 'admin@aangan-pk.com',
-          name: 'Admin User',
-          role: 'admin'
-        }
+        id: 'admin-user',
+        email: 'admin@aangan-pk.com',
+        role: 'admin'
       });
     } else {
-      res.status(401).json({ error: "Invalid credentials" });
+      res.status(400).json({ message: "Invalid credentials" });
     }
     
   } catch (error) {
     console.error("❌ Login error:", error);
     res.status(500).json({ 
-      error: "Login failed", 
+      message: "Login failed", 
       details: error.message 
     });
   }
@@ -437,13 +439,14 @@ app.post("/api/auth/login", async (req, res) => {
 
 app.post("/api/auth/logout", async (req, res) => {
   try {
-    // In a real app, you might invalidate the token here
-    res.json({ message: "Logged out successfully" });
+    // Clear the cookie
+    res.clearCookie('token');
+    res.json({ ok: true });
     
   } catch (error) {
     console.error("❌ Logout error:", error);
     res.status(500).json({ 
-      error: "Logout failed", 
+      message: "Logout failed", 
       details: error.message 
     });
   }
