@@ -11,3 +11,4 @@ const api = axios.create({
 export default api;
 
 // Axios instance for making API requests with credentials
+// Updated to use correct API base URL from environment variables

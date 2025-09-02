@@ -126,8 +126,69 @@ app.get("/api/firebase-status", (req, res) => {
   }
 });
 
-// Test endpoints
-app.get("/api/firebase-test", async (req, res) => {
+// Test endpoint to check raw Firestore response
+app.get("/api/firestore-test", async (req, res) => {
+  try {
+    console.log("🔍 Testing Firestore REST API directly...");
+    
+    const serviceAccountString = Buffer.from(process.env.FIREBASE_SERVICE_ACCOUNT_KEY, 'base64').toString();
+    const serviceAccount = JSON.parse(serviceAccountString);
+    const projectId = serviceAccount.project_id;
+    
+    // Create access token manually
+    const jwtModule = await import('jsonwebtoken');
+    const jwt = jwtModule.default;
+    const now = Math.floor(Date.now() / 1000);
+    const payload = {
+      iss: serviceAccount.client_email,
+      sub: serviceAccount.client_email,
+      aud: 'https://oauth2.googleapis.com/token',
+      iat: now,
+      exp: now + 3600,
+      scope: 'https://www.googleapis.com/auth/datastore'
+    };
+    
+    const token = jwt.sign(payload, serviceAccount.private_key, { algorithm: 'RS256' });
+    
+    // Get access token
+    const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: `grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=${token}`
+    });
+    
+    const tokenData = await tokenResponse.json();
+    console.log("Token response:", tokenData);
+    
+    // Query Firestore REST API
+    const firestoreUrl = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/blogs`;
+    console.log("Querying URL:", firestoreUrl);
+    
+    const firestoreResponse = await fetch(firestoreUrl, {
+      headers: { 'Authorization': `Bearer ${tokenData.access_token}` }
+    });
+    
+    console.log("Firestore response status:", firestoreResponse.status);
+    const rawData = await firestoreResponse.json();
+    console.log("Raw Firestore response:", JSON.stringify(rawData, null, 2));
+    
+    res.json({
+      success: true,
+      projectId: projectId,
+      firestoreStatus: firestoreResponse.status,
+      documentCount: rawData.documents ? rawData.documents.length : 0,
+      rawResponse: rawData
+    });
+    
+  } catch (error) {
+    console.error("❌ Firestore test error:", error);
+    res.status(500).json({
+      error: "Firestore test failed",
+      details: error.message,
+      stack: error.stack
+    });
+  }
+});
   try {
     if (!db) {
       return res.status(500).json({ error: "Database not initialized" });
