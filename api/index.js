@@ -370,6 +370,8 @@ app.get("/api/testimonials", async (req, res) => {
 app.get("/api/auth/me", async (req, res) => {
   try {
     // Check for token in cookies
+    console.log("🍪 Checking auth - cookies:", req.headers.cookie);
+    
     let token = null;
     if (req.headers.cookie) {
       const cookies = req.headers.cookie.split(';');
@@ -382,9 +384,11 @@ app.get("/api/auth/me", async (req, res) => {
       }
     }
     
+    console.log("🔑 Token found:", !!token, token ? token.substring(0, 20) + '...' : 'none');
+    
     if (!token) {
       return res.status(401).json({ 
-        message: "Unauthorized",
+        message: "No token provided",
         authenticated: false 
       });
     }
@@ -392,6 +396,7 @@ app.get("/api/auth/me", async (req, res) => {
     // Parse and validate the token
     try {
       const tokenData = JSON.parse(Buffer.from(token, 'base64').toString());
+      console.log("📅 Token data:", { expiresAt: new Date(tokenData.expiresAt), now: new Date(), expired: Date.now() > tokenData.expiresAt });
       
       // Check if token has expired
       if (Date.now() > tokenData.expiresAt) {
@@ -403,12 +408,14 @@ app.get("/api/auth/me", async (req, res) => {
       
       // Token is valid and not expired
       if (tokenData.user === 'admin-user') {
+        console.log("✅ Valid session found");
         res.json({
           id: 'admin-user',
           email: 'admin@aangan-pk.com',
           role: 'admin'
         });
       } else {
+        console.log("❌ Invalid user in token");
         res.status(401).json({ 
           message: "Invalid token",
           authenticated: false 
@@ -416,6 +423,7 @@ app.get("/api/auth/me", async (req, res) => {
       }
       
     } catch (parseError) {
+      console.log("🚨 Token parse error:", parseError.message);
       return res.status(401).json({ 
         message: "Invalid token format",
         authenticated: false 
@@ -435,6 +443,7 @@ app.get("/api/auth/me", async (req, res) => {
 app.post("/api/auth/login", async (req, res) => {
   try {
     const { email, password } = req.body;
+    console.log("🔐 Login attempt for:", email);
     
     // Simple hardcoded admin credentials
     if (email === 'admin@aangan-pk.com' && password === 'aangan@786!') {
@@ -446,6 +455,8 @@ app.post("/api/auth/login", async (req, res) => {
       };
       const token = Buffer.from(JSON.stringify(tokenData)).toString('base64');
       
+      console.log("🍪 Setting cookie with token:", token.substring(0, 20) + '...', "expires:", new Date(expiresAt));
+      
       // Set cookie with proper expiration
       res.cookie('token', token, {
         httpOnly: true,
@@ -455,12 +466,14 @@ app.post("/api/auth/login", async (req, res) => {
         path: '/' // Ensure cookie is available for all paths
       });
       
+      console.log("✅ Login successful, cookie set");
       res.json({
         id: 'admin-user',
         email: 'admin@aangan-pk.com',
         role: 'admin'
       });
     } else {
+      console.log("❌ Invalid credentials");
       res.status(400).json({ message: "Invalid credentials" });
     }
     
