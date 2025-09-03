@@ -370,8 +370,6 @@ app.get("/api/testimonials", async (req, res) => {
 app.get("/api/auth/me", async (req, res) => {
   try {
     // Check for token in cookies
-    console.log("🍪 All cookies:", req.headers.cookie);
-    
     let token = null;
     if (req.headers.cookie) {
       const cookies = req.headers.cookie.split(';');
@@ -383,8 +381,6 @@ app.get("/api/auth/me", async (req, res) => {
         }
       }
     }
-    
-    console.log("🔑 Extracted token:", token);
     
     if (!token) {
       return res.status(401).json({ 
@@ -399,7 +395,6 @@ app.get("/api/auth/me", async (req, res) => {
       
       // Check if token has expired
       if (Date.now() > tokenData.expiresAt) {
-        console.log("🕐 Token expired at:", new Date(tokenData.expiresAt));
         return res.status(401).json({ 
           message: "Session expired",
           authenticated: false 
@@ -421,7 +416,6 @@ app.get("/api/auth/me", async (req, res) => {
       }
       
     } catch (parseError) {
-      console.log("🚨 Token parse error:", parseError.message);
       return res.status(401).json({ 
         message: "Invalid token format",
         authenticated: false 
@@ -481,9 +475,6 @@ app.post("/api/auth/login", async (req, res) => {
 
 app.post("/api/auth/logout", async (req, res) => {
   try {
-    console.log("🚪 Logout request received");
-    console.log("🍪 Cookies before logout:", req.headers.cookie);
-    
     // Clear the cookie properly with all the same options as when it was set
     res.clearCookie('token', {
       httpOnly: true,
@@ -501,7 +492,6 @@ app.post("/api/auth/logout", async (req, res) => {
       expires: new Date(0) // Set to epoch (expired)
     });
     
-    console.log("✅ Cookie cleared successfully");
     res.json({ ok: true, message: "Logged out successfully" });
     
   } catch (error) {
