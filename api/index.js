@@ -369,76 +369,73 @@ app.get("/api/testimonials", async (req, res) => {
 // Authentication endpoints for admin panel
 app.get("/api/auth/me", async (req, res) => {
   try {
-    // Check for token in cookies
-    console.log("🍪 Checking auth - cookies:", req.headers.cookie);
+    // Get token from Authorization header
+    const authHeader = req.headers.authorization;
+    console.log("🔍 Auth header:", authHeader);
     
-    let token = null;
-    if (req.headers.cookie) {
-      const cookies = req.headers.cookie.split(';');
-      for (const cookie of cookies) {
-        const [name, value] = cookie.trim().split('=');
-        if (name === 'token') {
-          token = value;
-          break;
-        }
-      }
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      console.log("❌ No valid authorization header");
+      return res.status(401).json({ message: "No authentication token" });
     }
     
-    console.log("🔑 Token found:", !!token, token ? token.substring(0, 20) + '...' : 'none');
+    const token = authHeader.split(' ')[1];
+    console.log("� Extracted token:", token);
     
-    if (!token) {
-      return res.status(401).json({ 
-        message: "No token provided",
-        authenticated: false 
-      });
+    // Check if session exists and is valid
+    const session = activeSessions.get(token);
+    
+    if (!session) {
+      console.log("❌ Session not found for token");
+      return res.status(401).json({ message: "Invalid session token" });
     }
     
-    // Parse and validate the token
-    try {
-      const tokenData = JSON.parse(Buffer.from(token, 'base64').toString());
-      console.log("📅 Token data:", { expiresAt: new Date(tokenData.expiresAt), now: new Date(), expired: Date.now() > tokenData.expiresAt });
-      
-      // Check if token has expired
-      if (Date.now() > tokenData.expiresAt) {
-        return res.status(401).json({ 
-          message: "Session expired",
-          authenticated: false 
-        });
-      }
-      
-      // Token is valid and not expired
-      if (tokenData.user === 'admin-user') {
-        console.log("✅ Valid session found");
-        res.json({
-          id: 'admin-user',
-          email: 'admin@aangan-pk.com',
-          role: 'admin'
-        });
-      } else {
-        console.log("❌ Invalid user in token");
-        res.status(401).json({ 
-          message: "Invalid token",
-          authenticated: false 
-        });
-      }
-      
-    } catch (parseError) {
-      console.log("🚨 Token parse error:", parseError.message);
-      return res.status(401).json({ 
-        message: "Invalid token format",
-        authenticated: false 
-      });
+    // Check if session has expired
+    if (Date.now() > session.expiresAt) {
+      console.log("❌ Session expired at:", new Date(session.expiresAt));
+      activeSessions.delete(token); // Clean up expired session
+      return res.status(401).json({ message: "Session expired" });
     }
+    
+    console.log("✅ Valid session found, expires:", new Date(session.expiresAt));
+    res.json({
+      id: session.user,
+      email: session.email,
+      role: 'admin'
+    });
     
   } catch (error) {
-    console.error("❌ Auth me error:", error);
+    console.error("❌ Auth verification error:", error);
     res.status(500).json({ 
-      message: "Authentication failed", 
-      details: error.message,
-      authenticated: false
+      message: "Authentication verification failed", 
+      details: error.message 
     });
   }
 });
+
+app.post("/api/auth/logout", async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.split(' ')[1];
+      // Remove session from memory
+      activeSessions.delete(token);
+      console.log("✅ Session removed, logged out successfully");
+    }
+    
+    res.json({ message: "Logged out successfully" });
+    
+  } catch (error) {
+    console.error("❌ Logout error:", error);
+    res.status(500).json({ 
+      message: "Logout failed", 
+      details: error.message 
+    });
+  }
+});
+
+// Simple in-memory session storage (for serverless, this resets on each deployment)
+let activeSessions = new Map();
 
 app.post("/api/auth/login", async (req, res) => {
   try {
@@ -447,30 +444,28 @@ app.post("/api/auth/login", async (req, res) => {
     
     // Simple hardcoded admin credentials
     if (email === 'admin@aangan-pk.com' && password === 'aangan@786!') {
-      // Create a timestamped token that includes expiry time
+      // Create a simple session token
+      const sessionToken = 'admin-session-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
       const expiresAt = Date.now() + (15 * 60 * 1000); // 15 minutes from now
-      const tokenData = {
+      
+      // Store session in memory
+      activeSessions.set(sessionToken, {
         user: 'admin-user',
+        email: 'admin@aangan-pk.com',
         expiresAt: expiresAt
-      };
-      const token = Buffer.from(JSON.stringify(tokenData)).toString('base64');
-      
-      console.log("🍪 Setting cookie with token:", token.substring(0, 20) + '...', "expires:", new Date(expiresAt));
-      
-      // Set cookie with proper expiration
-      res.cookie('token', token, {
-        httpOnly: true,
-        secure: true, // Vercel uses HTTPS
-        sameSite: 'none', // For cross-origin requests
-        maxAge: 15 * 60 * 1000, // 15 minutes in milliseconds
-        path: '/' // Ensure cookie is available for all paths
       });
       
-      console.log("✅ Login successful, cookie set");
+      console.log("✅ Login successful, session created:", sessionToken);
+      console.log("📅 Session expires at:", new Date(expiresAt));
+      
+      // Return token to frontend (frontend will store in localStorage)
       res.json({
-        id: 'admin-user',
-        email: 'admin@aangan-pk.com',
-        role: 'admin'
+        token: sessionToken,
+        user: {
+          id: 'admin-user',
+          email: 'admin@aangan-pk.com',
+          role: 'admin'
+        }
       });
     } else {
       console.log("❌ Invalid credentials");

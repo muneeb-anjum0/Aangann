@@ -3,6 +3,7 @@ import ReactDOM from "react-dom/client";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import "./index.css";
 
+// Updated authentication system with localStorage token management
 
 // Lazy load main pages for better performance
 const Home = React.lazy(() => import("./pages/Home"));

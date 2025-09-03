@@ -66,11 +66,22 @@ export default function Admin() {
   // Logout function
   const logout = async () => {
     await api.post("/auth/logout");
+    localStorage.removeItem('authToken');
     location.reload();
   };
 
   useEffect(() => {
-    api.get<User>("/auth/me").then(r => setMe(r.data)).catch(() => setMe(null));
+    // Only try to authenticate if we have a token
+    const token = localStorage.getItem('authToken');
+    if (token) {
+      api.get<User>("/auth/me").then(r => setMe(r.data)).catch(() => {
+        // Token invalid, remove it
+        localStorage.removeItem('authToken');
+        setMe(null);
+      });
+    } else {
+      setMe(null);
+    }
   }, []);
 
   if (!me) return (
@@ -1112,9 +1123,14 @@ function Login({ onAuthed }: { onAuthed: (u: User) => void }) {
             setLoading(true);
             setError("");
             try {
-              await api.post("/auth/login", { email, password });
-              const u = await api.get<User>("/auth/me").then(r => r.data);
-              onAuthed(u);
+              // Login and get token
+              const loginResponse = await api.post("/auth/login", { email, password });
+              const { token, user } = loginResponse.data;
+              
+              // Store token in localStorage
+              localStorage.setItem('authToken', token);
+              
+              onAuthed(user);
             } catch (err: any) {
               setError(err?.response?.data?.message || "Login failed. Please try again.");
             } finally {
